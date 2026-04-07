@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetMind — AI Meeting Summarizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1a1a24;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(108,99,255,0.15);
+    --text: #f0eff8;
+    --text2: #9896b0;
+    --text3: #5a5875;
+    --green: #4ade80;
+    --green-bg: rgba(74,222,128,0.1);
+    --amber: #fbbf24;
+    --amber-bg: rgba(251,191,36,0.1);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.1);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.1);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated bg grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Orb */
+  body::after {
+    content: '';
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(108,99,255,0.08) 0%, transparent 70%);
+    top: -200px;
+    right: -200px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 34px;
+    height: 34px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  .nav-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    background: var(--accent-glow);
+    border: 1px solid rgba(108,99,255,0.3);
+    padding: 4px 12px;
+    border-radius: 100px;
+    letter-spacing: 0.05em;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 60px 0 40px;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    background: var(--accent-glow);
+    border: 1px solid rgba(108,99,255,0.2);
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent2);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 .grad {
+    background: linear-gradient(135deg, #a78bfa 0%, #6c63ff 50%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: 17px;
+    color: var(--text2);
+    max-width: 480px;
+    margin: 0 auto 36px;
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* STATS ROW */
+  .stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 20px 0 48px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border2);
+  }
+
+  /* MAIN LAYOUT */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 40px 0;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .results-col { order: -1; }
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--border2); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .card-icon.purple { background: var(--accent-glow); }
+  .card-icon.green { background: var(--green-bg); }
+  .card-icon.amber { background: var(--amber-bg); }
+  .card-icon.blue { background: var(--blue-bg); }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .card-subtitle {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 1px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* TEXTAREA */
+  .transcript-area {
+    width: 100%;
+    min-height: 260px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 14px;
+    resize: vertical;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .transcript-area::placeholder { color: var(--text3); }
+  .transcript-area:focus { border-color: rgba(108,99,255,0.5); }
+
+  /* QUICK SAMPLES */
+  .quick-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 14px 0 8px;
+  }
+
+  .samples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .sample-chip {
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .sample-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent2);
+    background: var(--accent-glow);
+  }
+
+  /* OPTIONS */
+  .options-row {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+  }
+
+  .opt-btn {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .opt-btn.active {
+    color: var(--accent2);
+    border-color: rgba(108,99,255,0.4);
+    background: var(--accent-glow);
+  }
+
+  .opt-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ANALYZE BUTTON */
+  .analyze-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #6c63ff, #a78bfa);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyze-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .analyze-btn:hover::before { opacity: 1; }
+  .analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(108,99,255,0.35); }
+  .analyze-btn:active { transform: translateY(0); }
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* RESULTS COLUMN */
+  .results-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .empty-icon {
+    font-size: 36px;
+    opacity: 0.3;
+  }
+
+  .empty-text {
+    font-size: 13px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    max-width: 200px;
+    line-height: 1.5;
+  }
+
+  /* SUMMARY BOX */
+  .summary-text {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.75;
+    font-weight: 300;
+  }
+
+  .summary-text p { margin-bottom: 10px; }
+  .summary-text p:last-child { margin-bottom: 0; }
+
+  /* ACTION ITEMS */
+  .action-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: border-color 0.15s;
+  }
+
+  .action-item:hover { border-color: var(--border2); }
+
+  .action-check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .action-check.done {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .action-check.done::after {
+    content: '✓';
+    font-size: 10px;
+    color: var(--bg);
+    font-weight: 700;
+  }
+
+  .action-text {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .action-text.done { text-decoration: line-through; color: var(--text3); }
+
+  .action-owner {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    background: var(--accent-glow);
+    padding: 2px 8px;
+    border-radius: 100px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* KEY POINTS */
+  .key-points { display: flex; flex-direction: column; gap: 8px; }
+
+  .key-point {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .key-bullet {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    margin-top: 7px;
+  }
+
+  .key-text {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.55;
+  }
+
+  /* SENTIMENT */
+  .sentiment-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .sent-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    width: 70px;
+    flex-shrink: 0;
+  }
+
+  .sent-track {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .sent-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .sent-fill.positive { background: var(--green); }
+  .sent-fill.neutral { background: var(--amber); }
+  .sent-fill.negative { background: var(--red); }
+
+  .sent-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    width: 32px;
+    text-align: right;
+  }
+
+  /* LOADING SPINNER */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* LOADER CARD */
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .loading-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    transition: color 0.3s;
+  }
+
+  .loading-step.active { color: var(--accent2); }
+  .loading-step.done { color: var(--green); }
+
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .loading-step.active .step-dot { background: var(--accent); animation: pulse 1s infinite; }
+  .loading-step.done .step-dot { background: var(--green); }
+
+  /* TAG */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 9px;
+    border-radius: 100px;
+    flex-shrink: 0;
+  }
+
+  .tag.green { color: var(--green); background: var(--green-bg); }
+  .tag.amber { color: var(--amber); background: var(--amber-bg); }
+  .tag.red { color: var(--red); background: var(--red-bg); }
+
+  /* COPY BTN */
+  .copy-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+
+  .copy-btn:hover { color: var(--text2); border-color: var(--border2); }
+
+  /* METADATA ROW */
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .meta-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+
+  .footer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .footer-text a { color: var(--accent2); text-decoration: none; }
+
+  /* NOTIFICATION */
+  .notif {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .notif.show { transform: translateY(0); opacity: 1; }
+
+  /* CHAR COUNT */
+  .char-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    text-align: right;
+    margin-top: 6px;
+  }
+
+  /* EXPORT ROW */
+  .export-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .export-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .export-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* PARTICIPANTS */
+  .participant-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .participant-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    background: var(--accent-glow);
+    border: 1px solid rgba(108,99,255,0.2);
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+
+  /* ANIMATION */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-in { animation: fadeUp 0.4s ease forwards; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <nav>
+    <a class="logo" href="#">
+      <div class="logo-icon">🧠</div>
+      Meet<span>Mind</span>
+    </a>
+
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">AI Meeting Intelligence</div>
+    <h1>Turn transcripts into<br><span class="grad">actionable insights</span></h1>
+    <p>Paste any meeting transcript and get a sharp summary, key decisions, and action items — in seconds.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">10x</div>
+      <div class="stat-label">faster review</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-num">98%</div>
+      <div class="stat-label">accuracy</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-num">&lt;5s</div>
+      <div class="stat-label">per analysis</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- INPUT COLUMN -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon purple">📝</div>
+          <div>
+            <div class="card-title">Meeting Transcript</div>
+            <div class="card-subtitle">Paste raw transcript or notes</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <textarea class="transcript-area" id="transcript" placeholder="Paste your meeting transcript here...
+
+Example:
+John: Let's discuss Q4 targets. We're 12% behind.
+Sarah: I think we should increase marketing spend.
+John: Agreed. Sarah, can you prepare a budget proposal?
+Sarah: Sure, I'll have it ready by Friday.
+..."></textarea>
+          <div class="char-count"><span id="char-count">0</span> characters</div>
+
+          <!-- FILE UPLOAD -->
+          <div class="quick-label" style="margin-top:14px;">Or Upload a File</div>
+          <div id="upload-zone" onclick="document.getElementById('file-input').click()" style="border:1.5px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);">
+            <input type="file" id="file-input" accept=".txt,.pdf" style="display:none;" onchange="handleFileUpload(event)">
+            <div style="font-size:22px;margin-bottom:6px;">📂</div>
+            <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">Click to upload .txt or .pdf</div>
+            <div id="file-name" style="font-size:12px;color:var(--accent2);margin-top:4px;display:none;"></div>
+          </div>
+
+          <div class="quick-label">Quick Samples</div>
+          <div class="samples">
+            <div class="sample-chip" onclick="loadSample('sprint')">Sprint Planning</div>
+            <div class="sample-chip" onclick="loadSample('sales')">Sales Review</div>
+            <div class="sample-chip" onclick="loadSample('strategy')">Strategy Session</div>
+            <div class="sample-chip" onclick="loadSample('standup')">Daily Standup</div>
+          </div>
+
+          <div class="quick-label" style="margin-top:16px;">Analysis Options</div>
+          <div class="options-row">
+            <button class="opt-btn active" id="opt-summary" onclick="toggleOpt(this)">📋 Summary</button>
+            <button class="opt-btn active" id="opt-actions" onclick="toggleOpt(this)">✅ Action Items</button>
+            <button class="opt-btn active" id="opt-decisions" onclick="toggleOpt(this)">🎯 Key Points</button>
+            <button class="opt-btn" id="opt-sentiment" onclick="toggleOpt(this)">💬 Sentiment</button>
+            <button class="opt-btn" id="opt-participants" onclick="toggleOpt(this)">👥 Participants</button>
+          </div>
+
+          <button class="analyze-btn" id="analyze-btn" onclick="analyzeMeeting()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Analyze Meeting
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS COLUMN -->
+    <div class="results-col" id="results-col">
+      <div class="card" id="empty-card">
+        <div class="empty-state">
+          <div class="empty-icon">🔮</div>
+          <div class="empty-text">Paste a transcript and click Analyze Meeting to begin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY SECTION -->
+  <div style="padding: 20px 0 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text);">Past Meetings</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:2px;">Saved from database</div>
+      </div>
+      <button class="opt-btn" onclick="loadHistory()" style="color:var(--accent2);border-color:rgba(108,99,255,0.3);">🔄 Refresh</button>
+    </div>
+    <div id="history-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:20px;">Loading history...</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-text">MeetMind &copy; 2025 — AI Meeting Intelligence</div>
+    <div class="footer-text">Built with <a href="#">FastAPI</a> + <a href="https://aistudio.google.com">Gemini API</a></div>
+  </footer>
+</div>
+
+<div class="notif" id="notif">
+  <span id="notif-icon">✓</span>
+  <span id="notif-msg">Copied to clipboard</span>
+</div>
+
+<script>
+const SAMPLES = {
+  sprint: `Alex: Alright team, let's kick off the Q4 Sprint 3 planning. First, let's review our velocity from last sprint.
+Maria: We completed 47 story points out of 52 committed. The login redesign ran over by about 2 days.
+Alex: What caused the delay, Maria?
+Maria: Backend API wasn't ready. We need better coordination with DevOps.
+James: I can create a shared calendar for API delivery milestones. That should help.
+Alex: Great idea. James, can you set that up by end of week?
+James: Sure, I'll have it done by Thursday.
+Alex: For Sprint 3, I'm proposing we prioritize the payment gateway integration. It's been pushed twice already.
+Maria: Agreed. I'll take point on that. Estimated 15 story points.
+Alex: What about the analytics dashboard? Product is asking for it by November 15th.
+James: I can start on the dashboard. Maybe 20 points, but I'll need the design specs from Lisa first.
+Alex: Lisa, can you have those specs ready by Monday?
+Lisa: Monday works. I'll send them over by noon.
+Alex: Perfect. Let's also allocate 10 points for bug fixes. Maria, can you own that?
+Maria: Yep, no problem.
+Alex: Our sprint goal is 52 points. That lines up. Let's plan for daily standups at 9am. Any concerns?
+James: Can we move standups to 9:30? I have a recurring conflict at 9.
+Alex: Sure, 9:30 it is. Thanks everyone, let's have a great sprint.`,
+
+  sales: `Rebecca: Sales team, Q3 numbers are in. Revenue hit $2.1M, which is 8% below target.
+Tom: The enterprise segment underperformed. We lost two key deals to competitors.
+Rebecca: What were the main reasons, Tom?
+Tom: Pricing and feature gaps. Specifically, they wanted SSO which we don't have yet.
+Rebecca: Engineering has SSO on the roadmap for Q1. We need to hold prospects until then.
+Tom: I'll draft a holding strategy this week. We can offer extended trials.
+Rebecca: Good call. SMB segment actually hit 110% of target, which is great.
+Nina: The new LinkedIn campaign drove most of that. 34% of new SMB leads came from it.
+Rebecca: Nina, let's double down on LinkedIn. Can you increase budget by 20%?
+Nina: I'll need finance approval but yes, I can submit the request today.
+Rebecca: Do that. Also, Tom, I need a full account review of the 5 enterprise prospects by Friday.
+Tom: On it. I'll circulate the doc before the weekend.
+Rebecca: On Q4 targets — we're aiming for $2.5M. Stretch is $2.8M. Any blockers?
+Tom: Headcount. We're two reps short. The two open reqs need to be filled ASAP.
+Rebecca: HR said offers are going out this week. Should close by end of month.
+Nina: If we bring on two reps in October, ramp time means they won't be fully productive until December.
+Rebecca: Noted. We'll account for that in quota allocation. Let's reconvene in two weeks. Good work, team.`,
+
+  strategy: `CEO (David): Today we're reviewing our 2025 strategy. Let's start with market positioning.
+CMO (Priya): We're facing increased competition from two new entrants. I recommend we lean into our enterprise reliability story rather than competing on price.
+CTO (Mark): From a product standpoint, I agree. Our uptime record of 99.97% is a genuine differentiator.
+David: Priya, can you develop a campaign around this? A 'Trust and Reliability' angle?
+Priya: Yes. I'll have a campaign brief ready in two weeks.
+CFO (Emma): We need to discuss the budget reallocation. Marketing wants an additional $500K, but we're looking at a tight Q1.
+Priya: The ROI from Q3 campaigns was 3.2x. I'm confident we can maintain that.
+Emma: If Priya can show projected returns, I can make it work. Priya, can you present a detailed ROI model?
+Priya: Absolutely, I'll have the model ready alongside the campaign brief.
+Mark: On the product side, we need to accelerate the mobile app. Three enterprise clients have specifically requested it.
+David: What's the timeline, Mark?
+Mark: If we hire two senior mobile engineers by November, we can launch a beta in Q2.
+David: Emma, can we fund two senior engineer hires?
+Emma: Yes, that's within the approved headcount plan.
+David: Mark, proceed with recruiting. Loop in HR this week.
+Mark: Will do.
+David: Let's align on the one-year vision: become the undisputed leader in enterprise workflow automation. All decisions should ladder up to that. Emma, please prepare board materials with these updates.
+Emma: I'll have a draft by next Thursday.`,
+
+  standup: `Scrum Master (Jen): Good morning, quick standup. Let's go around. Sam, you first.
+Sam: Yesterday I finished the user authentication module and pushed to staging. Today I'll start on the profile settings page. No blockers.
+Jen: Great. Maya?
+Maya: Yesterday I was debugging the API rate limiting issue. Found the root cause — it's a config error in the load balancer. Today I'll push the fix and test. I need DevOps access to the prod config, that's my blocker.
+Jen: I'll ping DevOps lead right after this. Should be sorted within the hour. Raj?
+Raj: Yesterday I completed UI designs for the notification system. Today I'm presenting them to the product team at 2pm for approval. No blockers, but I could use feedback from Sam on the user flow before my presentation.
+Sam: I can review it right after standup, maybe 15 minutes.
+Raj: Perfect, thanks.
+Jen: Any release blockers I should know about for Friday's deploy?
+Maya: Just the rate limiter fix. Should be done by EOD tomorrow.
+Sam: We'll need QA sign-off on my auth module. Can QA test it today?
+Jen: I'll coordinate with QA. Anything else? Okay, good standup everyone. Let's have a productive day.`
+};
+
+const textarea = document.getElementById('transcript');
+textarea.addEventListener('input', () => {
+  document.getElementById('char-count').textContent = textarea.value.length;
+});
+
+function loadSample(key) {
+  textarea.value = SAMPLES[key];
+  document.getElementById('char-count').textContent = textarea.value.length;
+  showNotif('📋', `Loaded ${key} sample`);
+}
+
+function toggleOpt(btn) {
+  btn.classList.toggle('active');
+}
+
+function showNotif(icon, msg) {
+  const n = document.getElementById('notif');
+  document.getElementById('notif-icon').textContent = icon;
+  document.getElementById('notif-msg').textContent = msg;
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 2500);
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => showNotif('✓', 'Copied to clipboard'));
+}
+
+async function analyzeMeeting() {
+  const transcript = textarea.value.trim();
+
+  // Check — either transcript or file must be present
+  if (!transcript && !uploadedFile) {
+    showNotif('⚠️', 'Paste a transcript or upload a file first');
+    return;
+  }
+
+  const opts = {
+    summary: document.getElementById('opt-summary').classList.contains('active'),
+    actions: document.getElementById('opt-actions').classList.contains('active'),
+    decisions: document.getElementById('opt-decisions').classList.contains('active'),
+    sentiment: document.getElementById('opt-sentiment').classList.contains('active'),
+    participants: document.getElementById('opt-participants').classList.contains('active'),
+  };
+
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Analyzing...';
+
+  const col = document.getElementById('results-col');
+  col.innerHTML = `
+    <div class="loading-card">
+      <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;color:var(--text2);">Processing transcript...</div>
+      <div class="loading-steps" id="loading-steps">
+        <div class="loading-step active" id="ls-1"><div class="step-dot"></div>Parsing transcript</div>
+        <div class="loading-step" id="ls-2"><div class="step-dot"></div>Extracting insights</div>
+        <div class="loading-step" id="ls-3"><div class="step-dot"></div>Identifying action items</div>
+        <div class="loading-step" id="ls-4"><div class="step-dot"></div>Generating summary</div>
+      </div>
+    </div>
+  `;
+
+  const stepTimers = [
+    setTimeout(() => { markStep(1); markStep(2, true); }, 900),
+    setTimeout(() => { markStep(2); markStep(3, true); }, 1800),
+    setTimeout(() => { markStep(3); markStep(4, true); }, 2700),
+  ];
+
+  function markStep(n, active = false) {
+    const el = document.getElementById(`ls-${n}`);
+    if (!el) return;
+    el.classList.remove('active');
+    if (!active) el.classList.add('done');
+    else el.classList.add('active');
+  }
+
+  const BACKEND_URL = 'https://meet-mind-u59b.onrender.com';
+
+  try {
+    let response;
+
+    if (uploadedFile) {
+      // FILE UPLOAD — use FormData
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('options', JSON.stringify(opts));
+
+      response = await fetch(`${BACKEND_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+      });
+    } else {
+      // TEXT — use JSON
+      response = await fetch(`${BACKEND_URL}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript, options: opts })
+      });
+    }
+
+    stepTimers.forEach(clearTimeout);
+    [1,2,3,4].forEach(n => {
+      const el = document.getElementById(`ls-${n}`);
+      if (el) { el.classList.remove('active'); el.classList.add('done'); }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.detail || 'Server error');
+    }
+
+    const result = await response.json();
+    console.log("API RESULT:", JSON.stringify(result));
+    renderResults(result, opts);
+    console.log("API RESULT:", JSON.stringify(result));
+    renderResults(result, opts);
+
+    renderResults(result, opts);
+
+  } catch (err) {
+    col.innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <div class="empty-text">Analysis failed. Please check your connection and try again.</div>
+        </div>
+      </div>
+    `;
+    showNotif('❌', 'Analysis failed. Try again.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Analyze Meeting';
+    // Reset file upload
+    uploadedFile = null;
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-name').style.display = 'none';
+    const zone = document.getElementById('upload-zone');
+    zone.style.borderColor = '';
+    zone.style.background = '';
+  }
+}
+
+function renderResults(result, opts) {
+  const col = document.getElementById('results-col');
+  col.innerHTML = '';
+
+  const meta = result.meeting_meta || {};
+
+  // SUMMARY CARD
+  if (opts.summary && result.summary) {
+    const card = document.createElement('div');
+    card.className = 'card animate-in';
+    card.style.animationDelay = '0ms';
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon green">📋</div>
+        <div>
+          <div class="card-title">Executive Summary</div>
+          <div class="card-subtitle">${meta.meeting_type || 'Meeting'} · ${meta.duration_estimate || 'N/A'}</div>
+        </div>
+        <button class="copy-btn" onclick="copyText(${JSON.stringify(result.summary)})">Copy</button>
+      </div>
+      <div class="card-body">
+        <div class="summary-text">${result.summary}</div>
+      </div>
+      ${meta.topic ? `<div class="meta-row">
+        <div class="meta-chip">🏷️ ${meta.topic}</div>
+      </div>` : ''}
+    `;
+    col.appendChild(card);
+  }
+
+  // ACTION ITEMS
+  if (opts.actions && result.action_items && result.action_items.length > 0) {
+    const card = document.createElement('div');
+    card.className = 'card animate-in';
+    card.style.animationDelay = '80ms';
+    const actionHTML = result.action_items.map((a, i) => `
+      <li class="action-item">
+        <div class="action-check" onclick="toggleAction(this, event)" id="ac-${i}"></div>
+        <span class="action-text" id="at-${i}">${a.task}</span>
+        <span class="tag ${a.priority === 'high' ? 'red' : a.priority === 'medium' ? 'amber' : 'green'}">${a.priority}</span>
+        <span class="action-owner">${a.owner}</span>
+      </li>
+    `).join('');
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon amber">✅</div>
+        <div>
+          <div class="card-title">Action Items</div>
+          <div class="card-subtitle">${result.action_items.length} tasks identified</div>
+        </div>
+        <button class="copy-btn" onclick="copyText(${JSON.stringify(result.action_items.map(a => `☐ ${a.task} (${a.owner})`).join('\n'))})">Copy</button>
+      </div>
+      <div class="card-body">
+        <ul class="action-list">${actionHTML}</ul>
+      </div>
+    `;
+    col.appendChild(card);
+  }
+
+  // KEY POINTS
+  if (opts.decisions && result.key_points && result.key_points.length > 0) {
+    const card = document.createElement('div');
+    card.className = 'card animate-in';
+    card.style.animationDelay = '160ms';
+    const kpHTML = result.key_points.map(k => `
+      <div class="key-point">
+        <div class="key-bullet"></div>
+        <span class="key-text">${k}</span>
+      </div>
+    `).join('');
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon blue">🎯</div>
+        <div>
+          <div class="card-title">Key Points & Decisions</div>
+          <div class="card-subtitle">${result.key_points.length} highlights</div>
+        </div>
+        <button class="copy-btn" onclick="copyText(${JSON.stringify(result.key_points.map(k => `• ${k}`).join('\n'))})">Copy</button>
+      </div>
+      <div class="card-body">
+        <div class="key-points">${kpHTML}</div>
+      </div>
+    `;
+    col.appendChild(card);
+  }
+
+  // SENTIMENT
+  if (opts.sentiment && result.sentiment) {
+    const s = result.sentiment;
+    const card = document.createElement('div');
+    card.className = 'card animate-in';
+    card.style.animationDelay = '240ms';
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon purple">💬</div>
+        <div>
+          <div class="card-title">Meeting Sentiment</div>
+          <div class="card-subtitle">Tone analysis</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="sentiment-bar">
+          <span class="sent-label">Positive</span>
+          <div class="sent-track"><div class="sent-fill positive" id="sf-pos" style="width:0%"></div></div>
+          <span class="sent-pct">${s.positive}%</span>
+        </div>
+        <div class="sentiment-bar" style="margin-top:10px;">
+          <span class="sent-label">Neutral</span>
+          <div class="sent-track"><div class="sent-fill neutral" id="sf-neu" style="width:0%"></div></div>
+          <span class="sent-pct">${s.neutral}%</span>
+        </div>
+        <div class="sentiment-bar" style="margin-top:10px;">
+          <span class="sent-label">Negative</span>
+          <div class="sent-track"><div class="sent-fill negative" id="sf-neg" style="width:0%"></div></div>
+          <span class="sent-pct">${s.negative}%</span>
+        </div>
+      </div>
+    `;
+    col.appendChild(card);
+    setTimeout(() => {
+      document.getElementById('sf-pos').style.width = s.positive + '%';
+      document.getElementById('sf-neu').style.width = s.neutral + '%';
+      document.getElementById('sf-neg').style.width = s.negative + '%';
+    }, 100);
+  }
+
+  // PARTICIPANTS
+  if (opts.participants && result.participants && result.participants.length > 0) {
+    const card = document.createElement('div');
+    card.className = 'card animate-in';
+    card.style.animationDelay = '320ms';
+    const pills = result.participants.map(p => `<div class="participant-pill">${p}</div>`).join('');
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon green">👥</div>
+        <div>
+          <div class="card-title">Participants</div>
+          <div class="card-subtitle">${result.participants.length} people detected</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="participant-pills">${pills}</div>
+      </div>
+    `;
+    col.appendChild(card);
+  }
+
+  // EXPORT CARD
+  const exportCard = document.createElement('div');
+  exportCard.className = 'card animate-in';
+  exportCard.style.animationDelay = '400ms';
+  exportCard.innerHTML = `
+    <div class="card-header">
+      <div class="card-icon purple">📤</div>
+      <div>
+        <div class="card-title">Export</div>
+        <div class="card-subtitle">Save or share results</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="export-row">
+        <button class="export-btn" onclick="exportMarkdown(${JSON.stringify(result).replace(/"/g, '&quot;')})">📄 Markdown</button>
+        <button class="export-btn" onclick="exportJSON(${JSON.stringify(result).replace(/"/g, '&quot;')})">{ } JSON</button>
+        <button class="export-btn" onclick="copyAll(${JSON.stringify(result).replace(/"/g, '&quot;')})">📋 Copy All</button>
+      </div>
+    </div>
+  `;
+  col.appendChild(exportCard);
+
+  showNotif('✨', 'Analysis complete!');
+}
+
+function toggleAction(el, event) {
+  const idx = el.id.replace('ac-', '');
+  el.classList.toggle('done');
+  const textEl = document.getElementById(`at-${idx}`);
+  if (textEl) textEl.classList.toggle('done');
+}
+
+function exportMarkdown(result) {
+  let md = `# Meeting Summary\n\n`;
+  if (result.meeting_meta) {
+    md += `**Type:** ${result.meeting_meta.meeting_type || 'N/A'}  \n`;
+    md += `**Topic:** ${result.meeting_meta.topic || 'N/A'}  \n`;
+    md += `**Duration:** ${result.meeting_meta.duration_estimate || 'N/A'}\n\n`;
+  }
+  if (result.summary) md += `## Summary\n${result.summary}\n\n`;
+  if (result.key_points) {
+    md += `## Key Points\n`;
+    result.key_points.forEach(k => md += `- ${k}\n`);
+    md += '\n';
+  }
+  if (result.action_items) {
+    md += `## Action Items\n`;
+    result.action_items.forEach(a => md += `- [ ] **${a.owner}**: ${a.task} _(${a.priority})_\n`);
+    md += '\n';
+  }
+  if (result.participants) md += `## Participants\n${result.participants.join(', ')}\n`;
+  copyText(md);
+  showNotif('📄', 'Markdown copied!');
+}
+
+function exportJSON(result) {
+  copyText(JSON.stringify(result, null, 2));
+  showNotif('{ }', 'JSON copied!');
+}
+
+function copyAll(result) {
+  exportMarkdown(result);
+}
+
+// ---------- FILE UPLOAD ----------
+
+let uploadedFile = null;
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  uploadedFile = file;
+  const nameEl = document.getElementById('file-name');
+  nameEl.textContent = '✅ ' + file.name;
+  nameEl.style.display = 'block';
+
+  const zone = document.getElementById('upload-zone');
+  zone.style.borderColor = 'var(--accent)';
+  zone.style.background = 'var(--accent-glow)';
+
+  // Clear textarea when file is uploaded
+  document.getElementById('transcript').value = '';
+  document.getElementById('char-count').textContent = '0';
+
+  showNotif('📂', file.name + ' ready to analyze');
+}
+
+// ---------- HISTORY ----------
+
+const BACKEND_URL_HIST = 'http://localhost:8000';
+
+async function loadHistory() {
+  const grid = document.getElementById('history-grid');
+  grid.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:20px;">Loading...</div>`;
+  try {
+    const res = await fetch(`${BACKEND_URL_HIST}/api/meetings`);
+    const meetings = await res.json();
+    if (!meetings.length) {
+      grid.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:20px;">No meetings yet. Analyze your first transcript above!</div>`;
+      return;
+    }
+    grid.innerHTML = meetings.map(m => `
+      <div class="card" style="cursor:default;">
+        <div class="card-header" style="padding:14px 16px;">
+          <div class="card-icon purple" style="font-size:13px;">📋</div>
+          <div style="flex:1;min-width:0;">
+            <div class="card-title" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.title || 'Untitled'}</div>
+            <div class="card-subtitle">${new Date(m.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</div>
+          </div>
+          <button onclick="deleteMeeting(${m.id}, this)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;" title="Delete">🗑</button>
+        </div>
+        <div class="card-body" style="padding:12px 16px;">
+          ${m.summary ? `<div class="summary-text" style="font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${m.summary}</div>` : '<div style="font-size:12px;color:var(--text3);">No summary</div>'}
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+            ${m.meeting_type ? `<span class="tag green">${m.meeting_type}</span>` : ''}
+            ${m.action_items?.length ? `<span class="tag amber">${m.action_items.length} actions</span>` : ''}
+            ${m.participants?.length ? `<span class="tag" style="color:var(--accent2);background:var(--accent-glow);">${m.participants.length} people</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);padding:20px;">Could not load history. Is the backend running?</div>`;
+  }
+}
+
+async function deleteMeeting(id, btn) {
+  btn.textContent = '...';
+  try {
+    await fetch(`${BACKEND_URL_HIST}/api/meetings/${id}`, { method: 'DELETE' });
+    showNotif('🗑', 'Meeting deleted');
+    loadHistory();
+  } catch(e) {
+    showNotif('❌', 'Could not delete');
+    btn.textContent = '🗑';
+  }
+}
+
+// Auto-load history on page open
+window.addEventListener('load', loadHistory);
+</script>
+</body>
+</html>
