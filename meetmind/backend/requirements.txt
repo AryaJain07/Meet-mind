@@ -4,5 +4,5 @@ python-dotenv
 requests
 sqlalchemy
 python-multipart
-pydantic>=2.45.0
+pydantic==2.12.5
 PyPDF2
