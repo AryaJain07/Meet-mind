@@ -1,9 +1,8 @@
---only-binary=:all:
-fastapi==0.111.0
-uvicorn==0.29.0
-python-dotenv==1.0.1
-requests==2.31.0
-sqlalchemy==2.0.30
-python-multipart==0.0.9
-pydantic==2.6.4
-PyPDF2==3.0.1
+fastapi
+uvicorn
+python-dotenv
+requests
+sqlalchemy
+python-multipart
+pydantic>=2.45.0
+PyPDF2
